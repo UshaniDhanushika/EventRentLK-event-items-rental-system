@@ -1,4 +1,4 @@
-# 💍 EventRentLK - Event Equipment Rental System
+# 💍🎂 EventRentLK - Event Equipment Rental System
 
 <div align="center">
   <img src="frontend/src/assets/logo.png" alt="EventRentLK Logo" width="180">
