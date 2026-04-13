@@ -1,0 +1,284 @@
+/*
+  EventRentLK — Purple & Gold Theme
+  #6105B3 primary, white background, shadow cards.
+*/
+
+:root {
+  --primary: #560BAD;
+  --primary-deep: #3f0980;
+  --primary-bright: #7209b7;
+  --gold: #FFD700;
+  --gold-hover: #e6c200;
+  --navy: #0d2a4a;
+}
+
+html[data-theme='light'],
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f8f4ff;
+  --border: #e6def0;
+  --text: #1a0233;
+  --muted: #6b5a7e;
+  --accent: var(--primary);
+  --accent-strong: var(--primary-deep);
+  --accent-muted: rgba(97, 5, 179, 0.08);
+  --header-bg: #560BAD;
+  --header-text: #ffffff;
+  --header-border: rgba(255, 255, 255, 0.1);
+  --hero-gradient: linear-gradient(
+    145deg,
+    rgba(86, 11, 173, 0.05) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
+  --on-accent: #ffffff;
+  --ring-focus: rgba(86, 11, 173, 0.4);
+  --shadow-md: 0 10px 30px rgba(86, 11, 173, 0.08);
+  --chart-axis: #0a1b22;
+  --chart-grid: rgba(0, 0, 0, 0.05);
+  --err-bg: rgba(200, 60, 60, 0.1);
+  --err-border: rgba(190, 70, 70, 0.4);
+  --err-text: #9b2222;
+  --ok-bg: rgba(0, 128, 112, 0.12);
+  --ok-border: rgba(0, 128, 112, 0.38);
+}
+
+/* Override for Dark Theme if user toggles, keeping purple branding */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d011a;
+  --surface: #1a0233;
+  --surface2: #250346;
+  --border: #3d1b6b;
+  --text: #f0e6ff;
+  --muted: #b0a0cc;
+  --accent: #b388ff;
+  --accent-strong: #d1b3ff;
+  --accent-muted: rgba(179, 136, 255, 0.15);
+  --header-bg: #0d011a;
+  --header-text: #ffffff;
+  --header-border: rgba(86, 11, 173, 0.3);
+  --hero-gradient: linear-gradient(
+    145deg,
+    rgba(86, 11, 173, 0.2) 0%,
+    rgba(13, 1, 26, 1) 100%
+  );
+  --on-accent: #ffffff;
+  --ring-focus: rgba(86, 11, 173, 0.5);
+  --shadow-md: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --chart-axis: #b0a0cc;
+  --chart-grid: rgba(255, 255, 255, 0.05);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Header Styles */
+.header {
+  background: var(--header-bg);
+  color: var(--header-text);
+  border-bottom: 1px solid var(--header-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(
+    to right,
+    #b388ff 20%,
+    #ffffff 40%,
+    #ffffff 60%,
+    #b388ff 80%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+  animation: shine 3s linear infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.brand-tagline {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+/* Navigation */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav button, 
+.nav-link-button {
+  background: none;
+  border: none;
+  color: var(--header-text);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.nav button:hover,
+.nav-link-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav button.active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Modern Card Style */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: var(--shadow-md);
+  list-style: none;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(97, 5, 179, 0.12);
+}
+
+/* Buttons */
+button.primary, 
+.primary-outline {
+  background: var(--primary);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button.primary:hover {
+  background: var(--gold);
+  color: #1a0233;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.primary-outline {
+  background: transparent;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+}
+
+.primary-outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Layout */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+  padding: 0;
+  margin: 2rem 0;
+}
+
+.hero {
+  text-align: center;
+  padding: 4rem 1rem;
+  background: var(--hero-gradient);
+  border-radius: 24px;
+  margin-bottom: 3rem;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  font-weight: 800;
+}
+
+.hero p {
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+.footer {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
