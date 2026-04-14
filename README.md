@@ -1,96 +1,84 @@
-# RentNova — Event Equipment Rental
+# 💍🎂 EventRentLK - Event Equipment Rental System
 
-Small full-stack demo: browse event gear, add to cart, and submit a rental request with dates and contact info.
+<div align="center">
+  <img src="frontend/src/assets/logo.png" alt="EventRentLK Logo" width="180">
+  <h3>Celebrate More, Spend Less.</h3>
+</div>
 
-## Stack
+---
 
-- **Frontend:** React (Vite) — catalog, cart, checkout
-- **Backend:** Spring Boot 3 — REST API
-- **Database:** MongoDB
+## 🎨 About the Brand Identity
+The **EventRentLK** logo and styling are crafted to evoke a sense of premium celebration and trust.
+*   **The Icon**: Represents unity and the gathering of people for life's milestones.
+*   **The Palette**: A deep, luxurious **Royal Purple** signifies sophistication, combined with high-contrast white to ensure modern clarity.
+*   **Typography**: We use the 'Inter' typeface for its clean, geometric lines, reflecting a modern and efficient digital experience.
 
-## Prerequisites
+---
 
-- [Node.js](https://nodejs.org/) 18+ (for the React app)
-- [JDK 17+](https://adoptium.net/) and [Maven](https://maven.apache.org/) (for the API), or use your IDE’s Spring Boot run configuration
-- [MongoDB](https://www.mongodb.com/try/download/community) running locally on the default port (`27017`), or change the URI below
+## 🚀 Project Overview
+EventRentLK is a premium, web-based platform designed to simplify the process of renting equipment for life's most important celebrations. Whether planning an elegant wedding or a vibrant birthday bash, our platform provides a personalized, high-end experience for both customers and administrators.
 
-## MongoDB
+---
 
-Default connection in `backend/src/main/resources/application.properties`:
+## ✨ Key Features
 
-```properties
-spring.data.mongodb.uri=mongodb://localhost:27017/event_rental
-```
+### 🛍️ Tailored User Experience
+*   **Event Path Selection**: Choose between dedicated **Wedding** and **Birthday Party** paths upon login for a curated shopping experience.
+*   **Smart Filtering**: Advanced categorization (Furniture, Decor, Lighting, etc.) that adapts to your chosen celebration type.
+*   **Seamless Checkout**: A modern, high-contrast checkout flow designed for clarity and speed.
 
-Start `mongod` before the API. On first run, sample equipment is inserted automatically if the collection is empty.
+### 🛡️ Robust Admin Suite
+*   **Analytics Dashboard**: Real-time tracking of total earnings, active rentals, and popular items.
+*   **Intelligent Inventory**: Add and manage equipment with direct image uploads and explicit "Path Assignment" (Wedding, Birthday, or Both).
+*   **User Management**: Full visibility into customer profiles and rental histories.
 
-## Run the API
+---
 
-**Start the API before `npm run dev`.** If the React app shows Vite `http proxy error` / `ECONNREFUSED`, nothing is listening on port 8080 (usually the Spring Boot app is not running yet, or it exited because MongoDB was down).
+## 🛠️ Technology Stack
 
-### Windows (no global Maven)
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React.js, Vite |
+| **Styling** | Vanilla CSS (Modern Variables & Flexbox) |
+| **Backend** | Spring Boot (Java) |
+| **Database** | MongoDB |
+| **Icons** | Custom SVG Glyphs |
 
-From the project root:
+---
 
-```powershell
-.\start-backend.ps1 spring-boot:run
-```
+## 🚀 Getting Started
 
-Or from `backend`:
+### Prerequisites
+*   Node.js (v16+)
+*   Java Development Kit (JDK) 17+
+*   MongoDB Instance
 
-```powershell
-.\mvnw.cmd spring-boot:run
-```
+### Installation
 
-The wrapper downloads Apache Maven on first use. You still need `JAVA_HOME` set to a JDK; if `java` works in PowerShell but `JAVA_HOME` is empty, `start-backend.ps1` tries to infer it.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/UshaniDhanushika/EventRentLK-event-items-rental-system.git
+    ```
 
-### With Maven installed
+2.  **Frontend Setup:**
+    ```bash
+    cd frontend
+    npm install
+    npm run dev
+    ```
 
-```bash
-cd backend
-mvn spring-boot:run
-```
+3.  **Backend Setup:**
+    *(Ensure your MongoDB connection string is configured in `application.properties`)*
+    ```bash
+    # Run the Spring Boot application using your IDE or Maven
+    ./mvnw spring-boot:run
+    ```
 
-API listens on **http://localhost:8080** (Vite proxies `/api` to `127.0.0.1:8080`).
+---
 
-- `GET /api/equipment` — list (optional `?category=Audio`)
-- `GET /api/equipment/{id}` — one item
-- `POST /api/rentals` — create rental (JSON body with customer fields and `lines` with `equipmentId`, `quantity`, `startDate`, `endDate`)
-- `GET /api/rentals` — list orders (demo only; protect or remove in production)
+## 📜 License
+Distributed under the MIT License. See `LICENSE` for more information.
 
-## Run the React app
+---
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open **http://localhost:5173**. Vite proxies `/api` to the Spring Boot server during development.
-
-### Production build / different API host
-
-```bash
-cd frontend
-npm run build
-```
-
-Set `VITE_API_URL` when the UI is not served with a proxy, for example:
-
-```bash
-set VITE_API_URL=http://localhost:8080
-npm run build
-```
-
-## Project layout
-
-```
-rentnova/
-├── backend/          # Spring Boot + Spring Data MongoDB
-└── frontend/         # Vite + React
-```
-
-## Notes
-
-- Stock is validated on submit but **not** decremented (you can add inventory updates later).
-- There is **no authentication**; treat this as a learning template, not production-ready security.
+**Developed with ❤️ by Ushani Dhanushika**
