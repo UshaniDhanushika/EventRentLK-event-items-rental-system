@@ -1,0 +1,56 @@
+package com.eventrent.controller;
+
+import com.eventrent.model.Equipment;
+import com.eventrent.service.EquipmentService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin/equipment")
+public class AdminEquipmentController {
+
+    private final EquipmentService equipmentService;
+
+    public AdminEquipmentController(EquipmentService equipmentService) {
+        this.equipmentService = equipmentService;
+    }
+
+    @GetMapping
+    public List<Equipment> listAll() {
+        return equipmentService.findAll();
+    }
+
+    @PostMapping
+    public Equipment create(@RequestBody Equipment body) {
+        body.setId(null);
+        return equipmentService.save(body);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Equipment> update(@PathVariable String id, @RequestBody Equipment body) {
+        return equipmentService.findById(id)
+                .map(existing -> {
+                    body.setId(id);
+                    return ResponseEntity.ok(equipmentService.save(body));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        if (equipmentService.findById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        equipmentService.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+}
