@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchAdminUsers } from '../api/adminApi'
+import { fetchAdminUsers, confirmRental } from '../api/adminApi'
 
 function formatWhen(iso) {
   if (!iso) return '—'
@@ -32,6 +32,17 @@ export default function AdminUsersPage() {
     load()
   }, [load])
 
+  const handleConfirm = async (orderId) => {
+    if (!window.confirm('Confirm this rental and send notification email?')) return
+    try {
+      await confirmRental(orderId)
+      alert('Confirmed and email sent!')
+      load()
+    } catch (e) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
   return (
     <main className="owner-main">
       <h1 className="owner-page-title">User details</h1>
@@ -48,7 +59,7 @@ export default function AdminUsersPage() {
                 <tr>
                   <th>Name</th>
                   <th>Contact Info</th>
-                  <th>Rentals (Item | Price | Status)</th>
+                  <th>Rentals (Item | Price | Status | Action)</th>
                   <th>Role</th>
                   <th>Joined</th>
                 </tr>
@@ -66,7 +77,6 @@ export default function AdminUsersPage() {
                       <div className="admin-contact-cell">
                         <div className="email">{u.email}</div>
                         <div className="phone tiny muted">{u.phoneNumber || 'No phone'}</div>
-                        <div className="address tiny muted">{u.address || 'No address'}</div>
                       </div>
                     </td>
                     <td>
@@ -74,12 +84,23 @@ export default function AdminUsersPage() {
                         {(u.rentals && u.rentals.length > 0) ? (
                           <ul className="admin-user-rentals-list">
                             {u.rentals.map((r, idx) => (
-                              <li key={idx}>
-                                <span className="item-name">{r.equipmentName}</span>
-                                <span className="item-price">${r.price ? Number(r.price).toFixed(2) : '0.00'}</span>
-                                <span className={`status-badge ${r.status?.toLowerCase().replace('_', '-')}`}>
-                                  {r.status === 'SUBMITTED_COMPLETE' ? 'Submitted' : (r.status === 'PENDING_RENTAL' ? 'Pending' : r.status)}
-                                </span>
+                              <li key={idx} className="admin-rental-item-row">
+                                <div className="rental-info">
+                                  <span className="item-name">{r.equipmentName}</span>
+                                  <span className="item-price">${r.price ? Number(r.price).toFixed(2) : '0.00'}</span>
+                                  <span className={`status-badge ${(r.status || '').toLowerCase().trim().replace('_', '-')}`}>
+                                    {r.status}
+                                  </span>
+                                </div>
+                                {(r.status?.toUpperCase().includes('PENDING') || r.status?.toUpperCase().includes('SUBMITTED')) && (
+                                  <button 
+                                    className="confirm-btn-small" 
+                                    onClick={() => handleConfirm(r.orderId)}
+                                    style={{ marginLeft: '10px' }}
+                                  >
+                                    Confirm & Email
+                                  </button>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -88,20 +109,13 @@ export default function AdminUsersPage() {
                         )}
                       </div>
                     </td>
-                    <td>
-                      <span className="admin-role-pill">{u.role}</span>
-                    </td>
+                    <td><span className="admin-role-pill">{u.role}</span></td>
                     <td className="muted small">{formatWhen(u.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {users.length === 0 && (
-            <p className="muted" style={{ marginTop: '1rem' }}>
-              No users found.
-            </p>
-          )}
         </div>
       )}
     </main>

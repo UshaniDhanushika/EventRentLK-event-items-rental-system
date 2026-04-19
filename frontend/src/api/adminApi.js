@@ -30,3 +30,11 @@ export function updateAdminEquipment(id, body) {
 export function deleteAdminEquipment(id) {
   return http(`/api/admin/equipment/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
+
+export function confirmRental(orderId) {
+  return http(`/api/admin/rentals/${encodeURIComponent(orderId)}/confirm`, { method: 'POST' })
+}
+
+export function fetchAllRentals() {
+  return http('/api/rentals')
+}
