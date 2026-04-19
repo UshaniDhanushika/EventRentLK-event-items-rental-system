@@ -1,7 +1,7 @@
 # 💍🎂 EventRentLK - Event Equipment Rental System
 
 <div align="center">
-  <img src="frontend/src/assets/logo.png" alt="EventRentLK Logo" width="180">
+  <img src="frontend/src/assets/Logo.png" alt="EventRentLK Logo" width="180">
   <h3>Celebrate More, Spend Less.</h3>
 </div>
 
