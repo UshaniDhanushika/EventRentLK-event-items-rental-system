@@ -35,6 +35,10 @@ export function confirmRental(orderId) {
   return http(`/api/admin/rentals/${encodeURIComponent(orderId)}/confirm`, { method: 'POST' })
 }
 
+export function completeRental(orderId) {
+  return http(`/api/admin/rentals/${encodeURIComponent(orderId)}/return`, { method: 'POST' })
+}
+
 export function fetchAllRentals() {
   return http('/api/rentals')
 }

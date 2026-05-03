@@ -45,6 +45,11 @@ public class AdminController {
         rentalService.confirmOrder(orderId);
     }
 
+    @PostMapping("/rentals/{orderId}/return")
+    public void returnRental(@PathVariable String orderId) {
+        rentalService.returnOrder(orderId);
+    }
+
     @GetMapping("/summary")
     public Map<String, Object> summary() {
         return Map.of(
@@ -64,6 +69,7 @@ public class AdminController {
         List<RentalOrder> allOrders = rentalOrderRepository.findAll();
 
         return userList.stream()
+                .filter(u -> u.getRole() == null || !u.getRole().name().equalsIgnoreCase("ADMIN"))
                 .map(u -> toUserSummary(u, allOrders))
                 .toList();
     }

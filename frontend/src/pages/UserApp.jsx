@@ -108,6 +108,9 @@ export default function UserApp() {
   const [loadingRentals, setLoadingRentals] = useState(false)
   const [orderResult, setOrderResult] = useState(null)
 
+  // Custom Modal State
+  const [confirmModal, setConfirmModal] = useState({ visible: false, item: null })
+
   useEffect(() => {
     if (location.pathname === '/checkout') {
       setView('checkout')
@@ -242,6 +245,18 @@ export default function UserApp() {
       setOrderResult({ error: err.message })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAddToCartConfirm = (item) => {
+    setConfirmModal({ visible: true, item })
+  }
+
+  const confirmAddToCart = () => {
+    if (confirmModal.item) {
+      addToCart(confirmModal.item)
+      setConfirmModal({ visible: false, item: null })
+      navigate('/checkout')
     }
   }
 
@@ -429,7 +444,7 @@ export default function UserApp() {
                         <button
                           type="button"
                           className="primary"
-                          onClick={() => addToCart(item)}
+                          onClick={() => handleAddToCartConfirm(item)}
                           disabled={item.quantityAvailable < 1}
                         >
                           Add to cart
@@ -694,6 +709,33 @@ export default function UserApp() {
           </section>
         )}
       </main>
+
+      {/* CUSTOM ADD TO CART CONFIRMATION POPUP */}
+      {confirmModal.visible && (
+        <div className="custom-modal-overlay">
+          <div className="custom-modal">
+            <div className="modal-icon-box">🛒</div>
+            <h3>Add to Cart?</h3>
+            <p>Would you like to add <strong>{confirmModal.item?.name}</strong> to your cart and proceed to checkout?</p>
+            <div className="modal-actions">
+              <button 
+                type="button" 
+                className="modal-btn-yes" 
+                onClick={confirmAddToCart}
+              >
+                Yes, Go to Cart
+              </button>
+              <button 
+                type="button" 
+                className="modal-btn-no" 
+                onClick={() => setConfirmModal({ visible: false, item: null })}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="footer">
         <p>© {new Date().getFullYear()} EventRentLK — Premium Event Rentals in Sri Lanka</p>

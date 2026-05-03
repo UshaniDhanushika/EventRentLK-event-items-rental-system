@@ -14,6 +14,7 @@ public class Equipment {
     private String description;
     private String category;
     private BigDecimal dailyRate;
+    private int totalStock;
     private int quantityAvailable;
     private String imageUrl;
 
@@ -55,6 +56,14 @@ public class Equipment {
 
     public void setDailyRate(BigDecimal dailyRate) {
         this.dailyRate = dailyRate;
+    }
+
+    public int getTotalStock() {
+        return totalStock;
+    }
+
+    public void setTotalStock(int totalStock) {
+        this.totalStock = totalStock;
     }
 
     public int getQuantityAvailable() {

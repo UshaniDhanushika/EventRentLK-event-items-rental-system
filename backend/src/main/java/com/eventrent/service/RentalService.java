@@ -45,6 +45,34 @@ public class RentalService {
         }
     }
 
+    public void returnOrder(String orderId) {
+        RentalOrder order = rentalOrderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        
+        // Only return items if the order hasn't been returned already
+        if ("RETURNED".equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order already returned");
+        }
+
+        order.setStatus("RETURNED");
+        rentalOrderRepository.save(order);
+
+        // Put items back into stock
+        for (com.eventrent.model.RentalLine line : order.getLines()) {
+            equipmentRepository.findById(line.getEquipmentId()).ifPresent(eq -> {
+                int restoredQty = eq.getQuantityAvailable() + line.getQuantity();
+                
+                // If totalStock was never set (is 0), initialize it now
+                if (eq.getTotalStock() < restoredQty) {
+                    eq.setTotalStock(restoredQty);
+                }
+                
+                eq.setQuantityAvailable(restoredQty);
+                equipmentRepository.save(eq);
+            });
+        }
+    }
+
     public RentalOrder create(CreateRentalRequest request) {
         List<RentalLine> resolved = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
@@ -100,7 +128,18 @@ public class RentalService {
         }
         order.setStatus("PENDING_RENTAL");
         order.setCreatedAt(Instant.now());
-        return rentalOrderRepository.save(order);
+        RentalOrder savedOrder = rentalOrderRepository.save(order);
+
+        // Update equipment stock
+        for (RentalLine line : resolved) {
+            equipmentRepository.findById(line.getEquipmentId()).ifPresent(eq -> {
+                int newQty = eq.getQuantityAvailable() - line.getQuantity();
+                eq.setQuantityAvailable(Math.max(0, newQty));
+                equipmentRepository.save(eq);
+            });
+        }
+
+        return savedOrder;
     }
 
     public List<RentalOrder> findByEmail(String email) {

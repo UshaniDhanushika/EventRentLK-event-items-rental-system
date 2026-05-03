@@ -32,6 +32,10 @@ public class AdminEquipmentController {
     @PostMapping
     public Equipment create(@RequestBody Equipment body) {
         body.setId(null);
+        // If totalStock isn't provided, initialize it to quantityAvailable
+        if (body.getTotalStock() <= 0) {
+            body.setTotalStock(body.getQuantityAvailable());
+        }
         return equipmentService.save(body);
     }
 
@@ -40,6 +44,10 @@ public class AdminEquipmentController {
         return equipmentService.findById(id)
                 .map(existing -> {
                     body.setId(id);
+                    // Ensure totalStock is at least as much as quantityAvailable if not set
+                    if (body.getTotalStock() <= 0) {
+                        body.setTotalStock(body.getQuantityAvailable());
+                    }
                     return ResponseEntity.ok(equipmentService.save(body));
                 })
                 .orElse(ResponseEntity.notFound().build());

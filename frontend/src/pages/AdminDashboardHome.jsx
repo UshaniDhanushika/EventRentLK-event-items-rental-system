@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminEarningsChart from '../components/admin/AdminEarningsChart'
 import {
   confirmRental,
+  completeRental,
   createAdminEquipment,
   deleteAdminEquipment,
   fetchAdminDashboard,
@@ -65,28 +66,16 @@ function IconTrend() {
   )
 }
 
-function IconStar() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3.5 14.2 9l5.8.4-4.5 3.8 1.4 5.7L12 16.9 6.1 18.9l1.4-5.7L3 9.4l5.8-.4L12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 const emptyForm = () => ({
   name: '',
   description: '',
   category: '',
   dailyRate: '',
   quantityAvailable: '0',
+  totalStock: '0',
   imageUrl: '',
   imageFile: null,
-  applicablePath: 'both', // 'wedding', 'birthday', 'both'
+  applicablePath: 'both',
 })
 
 export default function AdminDashboardHome() {
@@ -166,22 +155,12 @@ export default function AdminDashboardHome() {
       description: cleanDesc,
       category: item.category ?? '',
       dailyRate: item.dailyRate != null ? String(item.dailyRate) : '',
-      quantityAvailable:
-        item.quantityAvailable != null ? String(item.quantityAvailable) : '0',
+      quantityAvailable: String(item.quantityAvailable || 0),
+      totalStock: String(item.totalStock || item.quantityAvailable || 0),
       imageUrl: item.imageUrl ?? '',
       imageFile: null,
       applicablePath: path,
     })
-  }
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setForm((f) => ({ ...f, imageUrl: reader.result, imageFile: file }))
-    }
-    reader.readAsDataURL(file)
   }
 
   const submitEquipment = async (e) => {
@@ -194,6 +173,7 @@ export default function AdminDashboardHome() {
       category: form.category.trim(),
       dailyRate: Number(form.dailyRate),
       quantityAvailable: Number.parseInt(form.quantityAvailable, 10) || 0,
+      totalStock: Number.parseInt(form.totalStock, 10) || Number.parseInt(form.quantityAvailable, 10) || 0,
       imageUrl: form.imageUrl.trim() || undefined,
     }
     try {
@@ -234,6 +214,18 @@ export default function AdminDashboardHome() {
     }
   }
 
+  const handleReturnRental = async (id) => {
+    if (!window.confirm('Mark this item as returned? This will restore the inventory stock.')) return
+    try {
+      await completeRental(id)
+      alert('Item marked as returned and stock restored!')
+      loadRentals()
+      loadEquipment() // Refresh inventory counts
+    } catch (e) {
+      alert('Failed: ' + e.message)
+    }
+  }
+
   return (
     <main className="owner-main">
       <div>
@@ -245,30 +237,10 @@ export default function AdminDashboardHome() {
       {error && <p className="banner error">{error}</p>}
 
       <div className="owner-tabs" role="tablist" aria-label="Dashboard sections">
-        <button
-          type="button" role="tab"
-          aria-selected={tab === 'rentals'}
-          className={`owner-tab${tab === 'rentals' ? ' owner-tab--on' : ''}`}
-          onClick={() => setTab('rentals')}
-        >
-          Manage rentals
-        </button>
-        <button
-          type="button" role="tab"
-          aria-selected={tab === 'items'}
-          className={`owner-tab${tab === 'items' ? ' owner-tab--on' : ''}`}
-          onClick={() => setTab('items')}
-        >
-          Manage items
-        </button>
-        <button
-          type="button" role="tab"
-          aria-selected={tab === 'earnings'}
-          className={`owner-tab${tab === 'earnings' ? ' owner-tab--on' : ''}`}
-          onClick={() => setTab('earnings')}
-        >
-          Earnings
-        </button>
+        <button type="button" role="tab" aria-selected={tab === 'rentals'} className={`owner-tab${tab === 'rentals' ? ' owner-tab--on' : ''}`} onClick={() => setTab('rentals')}>Manage rentals</button>
+        <button type="button" role="tab" aria-selected={tab === 'items'} className={`owner-tab${tab === 'items' ? ' owner-tab--on' : ''}`} onClick={() => setTab('items')}>Manage items</button>
+        <button type="button" role="tab" aria-selected={tab === 'inventory'} className={`owner-tab${tab === 'inventory' ? ' owner-tab--on' : ''}`} onClick={() => setTab('inventory')}>Inventory</button>
+        <button type="button" role="tab" aria-selected={tab === 'earnings'} className={`owner-tab${tab === 'earnings' ? ' owner-tab--on' : ''}`} onClick={() => setTab('earnings')}>Earnings</button>
       </div>
 
       {tab === 'rentals' && (
@@ -294,20 +266,58 @@ export default function AdminDashboardHome() {
                     <td><strong>{r.customerName}</strong><br/><span className="tiny muted">{r.customerEmail}</span></td>
                     <td className="small">{r.lines?.map(l => l.equipmentName).join(', ')}</td>
                     <td>${r.total?.toFixed(2)}</td>
-                    <td>
-                       <span className={`status-badge ${(r.status || '').toLowerCase().trim().replace('_', '-')}`}>
-                         {r.status}
-                       </span>
-                    </td>
-                    <td>
+                    <td><span className={`status-badge ${(r.status || '').toLowerCase().trim().replace('_', '-')}`}>{r.status}</span></td>
+                    <td className="admin-row-actions">
                        {(r.status?.toUpperCase().includes('PENDING') || r.status?.toUpperCase().includes('SUBMITTED')) && (
-                         <button className="confirm-btn-small" onClick={() => handleConfirmRental(r.id)}>
-                           Confirm & Email
-                         </button>
+                         <button className="confirm-btn-small" onClick={() => handleConfirmRental(r.id)}>Confirm & Email</button>
+                       )}
+                       {r.status?.toUpperCase() === 'CONFIRMED' && (
+                         <button className="confirm-btn-small" style={{ background: 'var(--navy)' }} onClick={() => handleReturnRental(r.id)}>Mark Returned</button>
                        )}
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'inventory' && (
+        <div className="owner-panel">
+          <div className="owner-chart-head">
+            <h2>Inventory details</h2>
+            <p>Track your full stocks and current availability.</p>
+          </div>
+          <div className="admin-table-scroll">
+            <table className="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Category</th>
+                  <th>Full Stock</th>
+                  <th>Available Now</th>
+                  <th>On Rent</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipment.map((item) => {
+                  const onRent = Math.max(0, (item.totalStock || item.quantityAvailable) - item.quantityAvailable);
+                  const statusClass = item.quantityAvailable === 0 ? 'cancelled' : item.quantityAvailable < 3 ? 'pending' : 'confirmed';
+                  const statusText = item.quantityAvailable === 0 ? 'Out of Stock' : item.quantityAvailable < 3 ? 'Low Stock' : 'In Stock';
+                  
+                  return (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong></td>
+                      <td>{item.category}</td>
+                      <td>{item.totalStock || item.quantityAvailable}</td>
+                      <td>{item.quantityAvailable}</td>
+                      <td>{onRent}</td>
+                      <td><span className={`status-badge ${statusClass}`}>{statusText}</span></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -325,6 +335,7 @@ export default function AdminDashboardHome() {
               <label className="admin-field"><span>Name</span><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} required /></label>
               <label className="admin-field"><span>Category</span><input value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} required /></label>
               <label className="admin-field"><span>Daily rate</span><input type="number" step="0.01" value={form.dailyRate} onChange={e => setForm(f => ({...f, dailyRate: e.target.value}))} required /></label>
+              <label className="admin-field"><span>Stock Quantity</span><input type="number" value={form.quantityAvailable} onChange={e => setForm(f => ({...f, quantityAvailable: e.target.value, totalStock: e.target.value}))} required /></label>
             </div>
             <div className="admin-form-actions">
               <button type="submit" className="primary" disabled={saving}>{editingId ? 'Save changes' : 'Add item'}</button>
@@ -333,13 +344,14 @@ export default function AdminDashboardHome() {
           </form>
           <div className="admin-table-scroll admin-items-table">
             <table className="admin-data-table">
-              <thead><tr><th>Name</th><th>Category</th><th>Rate</th><th /></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Rate</th><th>Stock</th><th /></tr></thead>
               <tbody>
                 {equipment.map((item) => (
                   <tr key={item.id}>
                     <td>{item.name}</td>
                     <td>{item.category}</td>
                     <td>{money.format(Number(item.dailyRate))}</td>
+                    <td>{item.quantityAvailable}</td>
                     <td className="admin-row-actions">
                       <button className="ghost small" onClick={() => onEdit(item)}>Edit</button>
                       <button className="ghost small danger-text" onClick={() => onDelete(item.id)}>Delete</button>

@@ -631,6 +631,30 @@ html[data-theme='dark'] .status-badge.pending {
   border-color: rgba(255, 180, 0, 0.4);
 }
 
+.status-badge.confirmed {
+  background: #e7f9ef;
+  color: #00803c;
+  border: 1px solid #b3f9d3;
+}
+
+html[data-theme='dark'] .status-badge.confirmed {
+  background: rgba(0, 200, 80, 0.1);
+  color: #20e070;
+  border-color: rgba(0, 200, 80, 0.4);
+}
+
+.status-badge.cancelled {
+  background: #f9e7e7;
+  color: #800000;
+  border: 1px solid #f9b3b3;
+}
+
+html[data-theme='dark'] .status-badge.cancelled {
+  background: rgba(200, 0, 0, 0.1);
+  color: #e02020;
+  border-color: rgba(200, 0, 0, 0.4);
+}
+
 /* Image Upload Styling */
 .image-upload-container {
   display: flex;
