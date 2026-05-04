@@ -66,6 +66,15 @@ function IconTrend() {
   )
 }
 
+function IconSearch() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+      <path d="m20 20-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 const emptyForm = () => ({
   name: '',
   description: '',
@@ -83,9 +92,11 @@ export default function AdminDashboardHome() {
   const [equipment, setEquipment] = useState([])
   const [rentals, setRentals] = useState([])
   const [tab, setTab] = useState('rentals')
-  const [error, setError] = useState(null)
+  const [chartType, setChartType] = useState('daily')
+  const [search, setSearch] = useState('') // Search state
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
 
@@ -130,10 +141,31 @@ export default function AdminDashboardHome() {
     load()
   }, [load])
 
-  const chartSeries = useMemo(
-    () => dashboard?.monthlyEarnings ?? [],
-    [dashboard],
-  )
+  const chartSeries = useMemo(() => {
+    if (!dashboard) return []
+    return chartType === 'daily' ? dashboard.dailyEarnings : dashboard.monthlyEarnings
+  }, [dashboard, chartType])
+
+  // Filtered Rentals for Search
+  const filteredRentals = useMemo(() => {
+    if (!search.trim()) return rentals
+    const q = search.toLowerCase()
+    return rentals.filter(r => 
+      (r.customerName || '').toLowerCase().includes(q) || 
+      (r.customerEmail || '').toLowerCase().includes(q) ||
+      (r.id || '').toLowerCase().includes(q)
+    )
+  }, [rentals, search])
+
+  // Filtered Inventory for Search
+  const filteredInventory = useMemo(() => {
+    if (!search.trim() || tab !== 'inventory') return equipment
+    const q = search.toLowerCase()
+    return equipment.filter(item => 
+      (item.name || '').toLowerCase().includes(q) || 
+      (item.category || '').toLowerCase().includes(q)
+    )
+  }, [equipment, search, tab])
 
   const resetForm = () => {
     setForm(emptyForm())
@@ -215,12 +247,12 @@ export default function AdminDashboardHome() {
   }
 
   const handleReturnRental = async (id) => {
-    if (!window.confirm('Mark this item as returned? This will restore the inventory stock.')) return
+    if (!window.confirm('Mark this item as returned and send a confirmation email to the customer?')) return
     try {
       await completeRental(id)
       alert('Item marked as returned and stock restored!')
       loadRentals()
-      loadEquipment() // Refresh inventory counts
+      loadEquipment()
     } catch (e) {
       alert('Failed: ' + e.message)
     }
@@ -228,19 +260,32 @@ export default function AdminDashboardHome() {
 
   return (
     <main className="owner-main">
-      <div>
-        <h1 className="owner-page-title">Admin dashboard</h1>
-        <p className="owner-page-sub">Track your rental business performance</p>
+      <div className="admin-dashboard-head-row">
+        <div>
+          <h1 className="owner-page-title">Admin dashboard</h1>
+          <p className="owner-page-sub">Track your rental business performance</p>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="admin-search-box">
+          <IconSearch />
+          <input 
+            type="text" 
+            placeholder={`Search ${tab}...`} 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+          />
+        </div>
       </div>
 
       {loading && <p className="muted">Loading…</p>}
       {error && <p className="banner error">{error}</p>}
 
       <div className="owner-tabs" role="tablist" aria-label="Dashboard sections">
-        <button type="button" role="tab" aria-selected={tab === 'rentals'} className={`owner-tab${tab === 'rentals' ? ' owner-tab--on' : ''}`} onClick={() => setTab('rentals')}>Manage rentals</button>
-        <button type="button" role="tab" aria-selected={tab === 'items'} className={`owner-tab${tab === 'items' ? ' owner-tab--on' : ''}`} onClick={() => setTab('items')}>Manage items</button>
-        <button type="button" role="tab" aria-selected={tab === 'inventory'} className={`owner-tab${tab === 'inventory' ? ' owner-tab--on' : ''}`} onClick={() => setTab('inventory')}>Inventory</button>
-        <button type="button" role="tab" aria-selected={tab === 'earnings'} className={`owner-tab${tab === 'earnings' ? ' owner-tab--on' : ''}`} onClick={() => setTab('earnings')}>Earnings</button>
+        <button type="button" role="tab" aria-selected={tab === 'rentals'} className={`owner-tab${tab === 'rentals' ? ' owner-tab--on' : ''}`} onClick={() => { setTab('rentals'); setSearch(''); }}>Manage rentals</button>
+        <button type="button" role="tab" aria-selected={tab === 'items'} className={`owner-tab${tab === 'items' ? ' owner-tab--on' : ''}`} onClick={() => { setTab('items'); setSearch(''); }}>Manage items</button>
+        <button type="button" role="tab" aria-selected={tab === 'inventory'} className={`owner-tab${tab === 'inventory' ? ' owner-tab--on' : ''}`} onClick={() => { setTab('inventory'); setSearch(''); }}>Inventory</button>
+        <button type="button" role="tab" aria-selected={tab === 'earnings'} className={`owner-tab${tab === 'earnings' ? ' owner-tab--on' : ''}`} onClick={() => { setTab('earnings'); setSearch(''); }}>Earnings</button>
       </div>
 
       {tab === 'rentals' && (
@@ -261,7 +306,7 @@ export default function AdminDashboardHome() {
                 </tr>
               </thead>
               <tbody>
-                {rentals.map((r) => (
+                {filteredRentals.map((r) => (
                   <tr key={r.id}>
                     <td><strong>{r.customerName}</strong><br/><span className="tiny muted">{r.customerEmail}</span></td>
                     <td className="small">{r.lines?.map(l => l.equipmentName).join(', ')}</td>
@@ -277,6 +322,9 @@ export default function AdminDashboardHome() {
                     </td>
                   </tr>
                 ))}
+                {filteredRentals.length === 0 && (
+                  <tr><td colSpan="5" className="text-center muted" style={{ padding: '2rem' }}>No rentals found matching "{search}"</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -302,7 +350,7 @@ export default function AdminDashboardHome() {
                 </tr>
               </thead>
               <tbody>
-                {equipment.map((item) => {
+                {filteredInventory.map((item) => {
                   const onRent = Math.max(0, (item.totalStock || item.quantityAvailable) - item.quantityAvailable);
                   const statusClass = item.quantityAvailable === 0 ? 'cancelled' : item.quantityAvailable < 3 ? 'pending' : 'confirmed';
                   const statusText = item.quantityAvailable === 0 ? 'Out of Stock' : item.quantityAvailable < 3 ? 'Low Stock' : 'In Stock';
@@ -366,7 +414,16 @@ export default function AdminDashboardHome() {
 
       {tab === 'earnings' && dashboard && (
         <div className="owner-panel">
-          <h2>Earnings history</h2>
+          <div className="owner-chart-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2>Earnings history</h2>
+              <p>Performance trends for {chartType === 'daily' ? 'the current month' : 'the last quarter'}.</p>
+            </div>
+            <div className="owner-tabs" style={{ marginBottom: 0 }}>
+              <button className={`owner-tab ${chartType === 'daily' ? 'owner-tab--on' : ''}`} onClick={() => setChartType('daily')}>Daily</button>
+              <button className={`owner-tab ${chartType === 'monthly' ? 'owner-tab--on' : ''}`} onClick={() => setChartType('monthly')}>Monthly</button>
+            </div>
+          </div>
           <AdminEarningsChart data={chartSeries} />
         </div>
       )}

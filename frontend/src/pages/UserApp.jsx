@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createRental, fetchMyRentals } from '../api/rentalsApi'
 import { fetchEquipment } from '../api/equipmentApi'
-import { fetchMe, changePasswordRequest } from '../api/authApi'
+import { fetchMe, changePasswordRequest, updateProfileRequest } from '../api/authApi'
 import { useAuth } from '../auth/AuthContext'
 import { useCart } from '../auth/CartContext'
 import ThemeToggle from '../components/ThemeToggle'
@@ -85,7 +85,7 @@ function PasswordChangeForm() {
 }
 
 export default function UserApp() {
-  const { user, logout } = useAuth()
+  const { user, logout, login } = useAuth()
   const { cart, addToCart, updateQty, removeLine, clearCart, cartCount } = useCart()
   const navigate = useNavigate()
   const location = useLocation()
@@ -108,6 +108,11 @@ export default function UserApp() {
   const [loadingRentals, setLoadingRentals] = useState(false)
   const [orderResult, setOrderResult] = useState(null)
 
+  // Profile Edit State
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({ fullName: '', phoneNumber: '', address: '' })
+  const [profileSaving, setProfileSaving] = useState(false)
+
   // Custom Modal State
   const [confirmModal, setConfirmModal] = useState({ visible: false, item: null })
 
@@ -126,6 +131,11 @@ export default function UserApp() {
       setCustomerName(user.fullName || '')
       setCustomerEmail(user.email || '')
       setCustomerPhone(user.phoneNumber || '')
+      setProfileForm({
+        fullName: user.fullName || '',
+        phoneNumber: user.phoneNumber || '',
+        address: user.address || ''
+      })
     }
   }, [user])
 
@@ -245,6 +255,23 @@ export default function UserApp() {
       setOrderResult({ error: err.message })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setProfileSaving(true)
+    try {
+      await updateProfileRequest(profileForm)
+      // Re-fetch user data to update the global auth context
+      const updatedUser = await fetchMe()
+      if (login) login(updatedUser) // Update the auth context user
+      setIsEditingProfile(false)
+      alert('Profile updated successfully!')
+    } catch (err) {
+      alert('Failed to update profile: ' + err.message)
+    } finally {
+      setProfileSaving(false)
     }
   }
 
@@ -513,6 +540,7 @@ export default function UserApp() {
                       <input
                         type="date"
                         value={startDate}
+                        min={new Date().toISOString().split('T')[0]}
                         onChange={(e) => setStartDate(e.target.value)}
                         required
                       />
@@ -522,6 +550,7 @@ export default function UserApp() {
                       <input
                         type="date"
                         value={endDate}
+                        min={startDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         required
                       />
@@ -619,26 +648,64 @@ export default function UserApp() {
 
               <div className="profile-grid">
                 <div className="profile-info">
-                  <h3>Personal Information</h3>
-                  <div className="info-group">
-                    <label>Full Name</label>
-                    <p>{user.fullName}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3>Personal Information</h3>
+                    {!isEditingProfile && (
+                      <button type="button" className="ghost small" onClick={() => setIsEditingProfile(true)}>Edit</button>
+                    )}
                   </div>
-                  <div className="info-group">
-                    <label>Email Address</label>
-                    <p>{user.email}</p>
-                  </div>
-                  {user.phoneNumber && (
-                    <div className="info-group">
-                      <label>Phone Number</label>
-                      <p>{user.phoneNumber}</p>
-                    </div>
-                  )}
-                  {user.address && (
-                    <div className="info-group">
-                      <label>Address</label>
-                      <p>{user.address}</p>
-                    </div>
+
+                  {!isEditingProfile ? (
+                    <>
+                      <div className="info-group">
+                        <label>Full Name</label>
+                        <p>{user.fullName}</p>
+                      </div>
+                      <div className="info-group">
+                        <label>Email Address</label>
+                        <p>{user.email}</p>
+                      </div>
+                      <div className="info-group">
+                        <label>Phone Number</label>
+                        <p>{user.phoneNumber || 'Not provided'}</p>
+                      </div>
+                      <div className="info-group">
+                        <label>Address</label>
+                        <p>{user.address || 'Not provided'}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <form className="profile-edit-form" onSubmit={handleUpdateProfile}>
+                      <label className="admin-field">
+                        <span>Full Name</span>
+                        <input 
+                          value={profileForm.fullName} 
+                          onChange={e => setProfileForm(f => ({...f, fullName: e.target.value}))} 
+                          required 
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Phone Number</span>
+                        <input 
+                          value={profileForm.phoneNumber} 
+                          onChange={e => setProfileForm(f => ({...f, phoneNumber: e.target.value}))} 
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Address</span>
+                        <textarea 
+                          value={profileForm.address} 
+                          onChange={e => setProfileForm(f => ({...f, address: e.target.value}))} 
+                          rows={2}
+                        />
+                      </label>
+                      <div className="form-actions" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                        <button type="submit" className="primary small" disabled={profileSaving}>
+                          {profileSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button type="button" className="ghost small" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                      </div>
+                    </form>
                   )}
                 </div>
 

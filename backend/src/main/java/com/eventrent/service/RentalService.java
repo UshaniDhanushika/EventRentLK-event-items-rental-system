@@ -40,8 +40,10 @@ public class RentalService {
         
         try {
             emailService.sendConfirmationEmail(order);
+            System.out.println(">>> EMAIL SENT SUCCESSFULLY TO: " + order.getCustomerEmail());
         } catch (Exception e) {
-            System.err.println("Email failed: " + e.getMessage());
+            System.err.println(">>> EMAIL ERROR: Failed to send to " + order.getCustomerEmail());
+            e.printStackTrace(); // This will show the exact reason in your terminal
         }
     }
 
@@ -71,9 +73,29 @@ public class RentalService {
                 equipmentRepository.save(eq);
             });
         }
+
+        try {
+            emailService.sendReturnEmail(order);
+            System.out.println(">>> RETURN EMAIL SENT SUCCESSFULLY TO: " + order.getCustomerEmail());
+        } catch (Exception e) {
+            System.err.println(">>> RETURN EMAIL ERROR: Failed to send to " + order.getCustomerEmail());
+            e.printStackTrace();
+        }
     }
 
     public RentalOrder create(CreateRentalRequest request) {
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        
+        // Safety check: Dates cannot be in the past
+        for (com.eventrent.dto.CreateRentalLine line : request.getLines()) {
+            if (line.getStartDate() != null && line.getStartDate().isBefore(today)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rental start date cannot be in the past");
+            }
+            if (line.getEndDate() != null && line.getEndDate().isBefore(line.getStartDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End date cannot be before start date");
+            }
+        }
+
         List<RentalLine> resolved = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 

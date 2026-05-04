@@ -89,6 +89,20 @@ public class AdminDashboardService {
                 .map(e -> new MostRentedItemDto(e.getKey(), e.getValue()))
                 .toList();
 
+        List<MonthlyEarningDto> daily = new ArrayList<>();
+        DateTimeFormatter dayKeyFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (int d = 1; d <= today.getDayOfMonth(); d++) {
+            LocalDate day = currentMonth.atDay(d);
+            BigDecimal daySum = BigDecimal.ZERO;
+            for (RentalOrder order : all) {
+                if (order.getCreatedAt() == null) continue;
+                if (order.getCreatedAt().atZone(zone).toLocalDate().equals(day)) {
+                    daySum = daySum.add(order.getTotal() != null ? order.getTotal() : BigDecimal.ZERO);
+                }
+            }
+            daily.add(new MonthlyEarningDto(day.format(dayKeyFmt), String.valueOf(d), daySum.setScale(2, RoundingMode.HALF_UP)));
+        }
+
         AdminDashboardDto dto = new AdminDashboardDto();
         dto.setTotalEarningsThisMonth(earningsThisMonth.setScale(2, RoundingMode.HALF_UP));
         dto.setActiveRentals(activeRentalLines);
@@ -96,6 +110,7 @@ public class AdminDashboardService {
         dto.setAverageRating(PLACEHOLDER_RATING);
         dto.setRatingPlaceholder(true);
         dto.setMonthlyEarnings(monthly);
+        dto.setDailyEarnings(daily);
         dto.setMostRentedItems(mostRented);
         return dto;
     }

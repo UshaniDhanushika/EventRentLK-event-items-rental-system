@@ -24,3 +24,10 @@ export function changePasswordRequest(body) {
     body: JSON.stringify(body),
   })
 }
+
+export function updateProfileRequest(body) {
+  return http('/api/auth/update-profile', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}

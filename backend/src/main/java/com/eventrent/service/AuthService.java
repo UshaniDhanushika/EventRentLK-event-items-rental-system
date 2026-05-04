@@ -79,4 +79,15 @@ public class AuthService {
         u.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
         users.save(u);
     }
+
+    public void updateProfile(String email, com.eventrent.dto.UpdateProfileRequest req) {
+        UserAccount u = users.findByEmailIgnoreCase(email.trim().toLowerCase())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (req.getFullName() != null) u.setFullName(req.getFullName().trim());
+        if (req.getAddress() != null) u.setAddress(req.getAddress().trim());
+        if (req.getPhoneNumber() != null) u.setPhoneNumber(req.getPhoneNumber().trim());
+
+        users.save(u);
+    }
 }

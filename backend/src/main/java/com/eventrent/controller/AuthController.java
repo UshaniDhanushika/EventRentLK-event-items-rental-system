@@ -49,4 +49,12 @@ public class AuthController {
         }
         authService.changePassword(authentication.getName(), body);
     }
+
+    @PostMapping("/update-profile")
+    public void updateProfile(Authentication authentication, @RequestBody com.eventrent.dto.UpdateProfileRequest body) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED);
+        }
+        authService.updateProfile(authentication.getName(), body);
+    }
 }

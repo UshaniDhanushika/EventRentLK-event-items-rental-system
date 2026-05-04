@@ -12,7 +12,16 @@ public class AdminDashboardDto {
     private BigDecimal averageRating;
     private boolean ratingPlaceholder;
     private List<MonthlyEarningDto> monthlyEarnings = new ArrayList<>();
+    private List<MonthlyEarningDto> dailyEarnings = new ArrayList<>();
     private List<MostRentedItemDto> mostRentedItems = new ArrayList<>();
+
+    public List<MonthlyEarningDto> getDailyEarnings() {
+        return dailyEarnings;
+    }
+
+    public void setDailyEarnings(List<MonthlyEarningDto> dailyEarnings) {
+        this.dailyEarnings = dailyEarnings;
+    }
 
     public BigDecimal getTotalEarningsThisMonth() {
         return totalEarningsThisMonth;

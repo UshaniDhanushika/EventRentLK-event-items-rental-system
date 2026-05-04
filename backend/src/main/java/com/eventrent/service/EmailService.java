@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username}")
+    private String senderEmail;
 
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
@@ -16,6 +19,7 @@ public class EmailService {
 
     public void sendConfirmationEmail(RentalOrder order) {
         SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(senderEmail);
         message.setTo(order.getCustomerEmail());
         message.setSubject("Rental Confirmation - EventRentLK");
 
@@ -33,6 +37,25 @@ public class EmailService {
             order.getAdvancePayment(),
             order.getStartDate(),
             order.getEndDate()
+        );
+
+        message.setText(content);
+        mailSender.send(message);
+    }
+
+    public void sendReturnEmail(RentalOrder order) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(senderEmail);
+        message.setTo(order.getCustomerEmail());
+        message.setSubject("Items Returned Successfully - EventRentLK");
+
+        String content = String.format(
+            "Dear %s,\n\n" +
+            "This is to confirm that we have successfully received the rented items for Order #%s.\n\n" +
+            "Your rental status is now COMPLETED. We hope you had a wonderful event!\n\n" +
+            "Thank you for choosing EventRentLK, and we look forward to serving you again.",
+            order.getCustomerName(),
+            order.getId()
         );
 
         message.setText(content);
