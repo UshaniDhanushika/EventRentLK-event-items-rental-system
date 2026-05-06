@@ -109,7 +109,8 @@ export default function AdminDashboardHome() {
 
   const loadEquipment = useCallback(async () => {
     try {
-      const list = await fetchAdminEquipment()
+      const today = new Date().toISOString().split('T')[0]
+      const list = await fetchAdminEquipment(today, today)
       setEquipment(list)
     } catch(e) {}
   }, [])
@@ -383,7 +384,15 @@ export default function AdminDashboardHome() {
               <label className="admin-field"><span>Name</span><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} required /></label>
               <label className="admin-field"><span>Category</span><input value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} required /></label>
               <label className="admin-field"><span>Daily rate</span><input type="number" step="0.01" value={form.dailyRate} onChange={e => setForm(f => ({...f, dailyRate: e.target.value}))} required /></label>
-              <label className="admin-field"><span>Stock Quantity</span><input type="number" value={form.quantityAvailable} onChange={e => setForm(f => ({...f, quantityAvailable: e.target.value, totalStock: e.target.value}))} required /></label>
+              <label className="admin-field">
+                <span>Total Inventory (Own)</span>
+                <input 
+                  type="number" 
+                  value={form.totalStock} 
+                  onChange={e => setForm(f => ({...f, totalStock: e.target.value, quantityAvailable: e.target.value}))} 
+                  required 
+                />
+              </label>
             </div>
             <div className="admin-form-actions">
               <button type="submit" className="primary" disabled={saving}>{editingId ? 'Save changes' : 'Add item'}</button>

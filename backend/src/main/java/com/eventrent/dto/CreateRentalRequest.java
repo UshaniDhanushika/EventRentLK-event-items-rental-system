@@ -1,11 +1,9 @@
 package com.eventrent.dto;
 
-import com.eventrent.model.RentalLine;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-
 import java.util.List;
 
 public class CreateRentalRequest {
@@ -22,7 +20,7 @@ public class CreateRentalRequest {
 
     @NotEmpty
     @Valid
-    private List<RentalLine> lines;
+    private List<CreateRentalLine> lines;
 
     public String getCustomerName() {
         return customerName;
@@ -56,11 +54,11 @@ public class CreateRentalRequest {
         this.notes = notes;
     }
 
-    public List<RentalLine> getLines() {
+    public List<CreateRentalLine> getLines() {
         return lines;
     }
 
-    public void setLines(List<RentalLine> lines) {
+    public void setLines(List<CreateRentalLine> lines) {
         this.lines = lines;
     }
 }

@@ -16,14 +16,23 @@ import java.util.List;
 public class EquipmentController {
 
     private final EquipmentService equipmentService;
+    private final com.eventrent.service.RentalService rentalService;
 
-    public EquipmentController(EquipmentService equipmentService) {
+    public EquipmentController(EquipmentService equipmentService, com.eventrent.service.RentalService rentalService) {
         this.equipmentService = equipmentService;
+        this.rentalService = rentalService;
     }
 
     @GetMapping
-    public List<Equipment> list(@RequestParam(required = false) String category) {
-        return equipmentService.findByCategory(category);
+    public List<Equipment> list(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        java.time.LocalDate start = (startDate != null) ? java.time.LocalDate.parse(startDate) : null;
+        java.time.LocalDate end = (endDate != null) ? java.time.LocalDate.parse(endDate) : null;
+        
+        return equipmentService.findByCategory(category, start, end);
     }
 
     @GetMapping("/{id}")
@@ -31,5 +40,15 @@ public class EquipmentController {
         return equipmentService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/availability")
+    public int checkAvailability(
+            @PathVariable String id,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        java.time.LocalDate start = java.time.LocalDate.parse(startDate);
+        java.time.LocalDate end = java.time.LocalDate.parse(endDate);
+        return rentalService.getAvailableQuantity(id, start, end);
     }
 }

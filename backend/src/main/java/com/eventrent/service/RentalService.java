@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,21 +60,6 @@ public class RentalService {
         order.setStatus("RETURNED");
         rentalOrderRepository.save(order);
 
-        // Put items back into stock
-        for (com.eventrent.model.RentalLine line : order.getLines()) {
-            equipmentRepository.findById(line.getEquipmentId()).ifPresent(eq -> {
-                int restoredQty = eq.getQuantityAvailable() + line.getQuantity();
-                
-                // If totalStock was never set (is 0), initialize it now
-                if (eq.getTotalStock() < restoredQty) {
-                    eq.setTotalStock(restoredQty);
-                }
-                
-                eq.setQuantityAvailable(restoredQty);
-                equipmentRepository.save(eq);
-            });
-        }
-
         try {
             emailService.sendReturnEmail(order);
             System.out.println(">>> RETURN EMAIL SENT SUCCESSFULLY TO: " + order.getCustomerEmail());
@@ -99,7 +85,7 @@ public class RentalService {
         List<RentalLine> resolved = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
-        for (RentalLine line : request.getLines()) {
+        for (com.eventrent.dto.CreateRentalLine line : request.getLines()) {
             Equipment equipment = equipmentRepository.findById(line.getEquipmentId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Unknown equipment: " + line.getEquipmentId()));
@@ -109,13 +95,17 @@ public class RentalService {
             if (start == null || end == null || end.isBefore(start)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid rental dates");
             }
+
             int qty = line.getQuantity();
             if (qty < 1) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be at least 1");
             }
-            if (qty > equipment.getQuantityAvailable()) {
+
+            // SMART CHECK: Use the calendar logic instead of just current stock
+            int availableInPeriod = getAvailableQuantity(equipment.getId(), start, end);
+            if (qty > availableInPeriod) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Not enough stock for " + equipment.getName());
+                        "Not enough stock for " + equipment.getName() + " during the selected dates. Available: " + availableInPeriod);
             }
 
             long days = ChronoUnit.DAYS.between(start, end) + 1;
@@ -152,16 +142,57 @@ public class RentalService {
         order.setCreatedAt(Instant.now());
         RentalOrder savedOrder = rentalOrderRepository.save(order);
 
-        // Update equipment stock
-        for (RentalLine line : resolved) {
-            equipmentRepository.findById(line.getEquipmentId()).ifPresent(eq -> {
-                int newQty = eq.getQuantityAvailable() - line.getQuantity();
-                eq.setQuantityAvailable(Math.max(0, newQty));
-                equipmentRepository.save(eq);
-            });
-        }
-
         return savedOrder;
+    }
+
+    public int getAvailableQuantity(String equipmentId, LocalDate startDate, LocalDate endDate) {
+        Equipment equipment = equipmentRepository.findById(equipmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found"));
+
+        int totalStock = equipment.getTotalStock();
+        if (totalStock <= 0) totalStock = equipment.getQuantityAvailable();
+
+        List<RentalOrder> overlappingOrders = rentalOrderRepository.findAll().stream()
+                .filter(o -> !"CANCELLED".equals(o.getStatus()) && !"RETURNED".equals(o.getStatus()))
+                .filter(o -> o.getLines().stream().anyMatch(l -> l.getEquipmentId().equals(equipmentId)))
+                .filter(o -> !o.getEndDate().isBefore(startDate) && !o.getStartDate().isAfter(endDate))
+                .toList();
+
+        int maxUsedOnAnyDay = 0;
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            int usedOnThisDay = 0;
+            for (RentalOrder order : overlappingOrders) {
+                for (com.eventrent.model.RentalLine line : order.getLines()) {
+                    if (line.getEquipmentId().equals(equipmentId)) {
+                        if (!date.isBefore(line.getStartDate()) && !date.isAfter(line.getEndDate())) {
+                            usedOnThisDay += line.getQuantity();
+                        }
+                    }
+                }
+            }
+            if (usedOnThisDay > maxUsedOnAnyDay) {
+                maxUsedOnAnyDay = usedOnThisDay;
+            }
+        }
+        return Math.max(0, totalStock - maxUsedOnAnyDay);
+    }
+
+    public int getMissingStockCount(String equipmentId, int availableNow) {
+        Equipment equipment = equipmentRepository.findById(equipmentId).orElse(null);
+        if (equipment == null) return 0;
+        int total = equipment.getTotalStock() > 0 ? equipment.getTotalStock() : equipment.getQuantityAvailable();
+        return Math.max(0, total - availableNow);
+    }
+
+    public LocalDate getNextAvailableDate(String equipmentId, LocalDate startDate) {
+        return rentalOrderRepository.findAll().stream()
+                .filter(o -> !"CANCELLED".equals(o.getStatus()) && !"RETURNED".equals(o.getStatus()))
+                .filter(o -> o.getLines().stream().anyMatch(l -> l.getEquipmentId().equals(equipmentId)))
+                .filter(o -> !o.getEndDate().isBefore(startDate))
+                .map(RentalOrder::getEndDate)
+                .min(LocalDate::compareTo) // Earliest return date is the first restock
+                .map(date -> date.plusDays(1))
+                .orElse(null);
     }
 
     public List<RentalOrder> findByEmail(String email) {

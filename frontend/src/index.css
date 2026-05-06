@@ -372,3 +372,40 @@ button.primary:hover {
   from { transform: scale(0.9) translateY(20px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
+
+.availability-tag {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.availability-tag strong {
+  color: var(--primary);
+}
+
+.availability-tag.out strong {
+  color: #ff4d4d;
+}
+
+.overbooked-line {
+  background: rgba(255, 77, 77, 0.05);
+  border-left: 3px solid #ff4d4d !important;
+}
+
+.error-text.tiny {
+  font-size: 0.7rem;
+  color: #ff4d4d;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.stock.out {
+  color: #ff4d4d !important;
+}
+
+.next-date {
+  font-size: 0.85em;
+  opacity: 0.8;
+  font-style: italic;
+}

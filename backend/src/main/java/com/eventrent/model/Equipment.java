@@ -81,4 +81,26 @@ public class Equipment {
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
     }
+
+    @org.springframework.data.annotation.Transient
+    private java.time.LocalDate nextAvailableDate;
+
+    public java.time.LocalDate getNextAvailableDate() {
+        return nextAvailableDate;
+    }
+
+    public void setNextAvailableDate(java.time.LocalDate nextAvailableDate) {
+        this.nextAvailableDate = nextAvailableDate;
+    }
+
+    @org.springframework.data.annotation.Transient
+    private int missingStockCount;
+
+    public int getMissingStockCount() {
+        return missingStockCount;
+    }
+
+    public void setMissingStockCount(int missingStockCount) {
+        this.missingStockCount = missingStockCount;
+    }
 }

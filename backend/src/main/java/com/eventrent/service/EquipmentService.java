@@ -20,11 +20,39 @@ public class EquipmentService {
         return equipmentRepository.findAll();
     }
 
-    public List<Equipment> findByCategory(String category) {
+    private com.eventrent.service.RentalService rentalService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setRentalService(com.eventrent.service.RentalService rentalService) {
+        this.rentalService = rentalService;
+    }
+
+    public List<Equipment> findByCategory(String category, java.time.LocalDate start, java.time.LocalDate end) {
+        List<Equipment> items;
         if (category == null || category.isBlank()) {
-            return findAll();
+            items = findAll();
+        } else {
+            items = equipmentRepository.findByCategoryIgnoreCase(category.trim());
         }
-        return equipmentRepository.findByCategoryIgnoreCase(category.trim());
+
+        if (start != null && end != null && rentalService != null) {
+            for (Equipment item : items) {
+                int available = rentalService.getAvailableQuantity(item.getId(), start, end);
+                item.setQuantityAvailable(available);
+                
+                int missing = rentalService.getMissingStockCount(item.getId(), available);
+                item.setMissingStockCount(missing);
+                
+                if (missing > 0) {
+                    item.setNextAvailableDate(rentalService.getNextAvailableDate(item.getId(), start));
+                }
+            }
+        }
+        return items;
+    }
+
+    public List<Equipment> findByCategory(String category) {
+        return findByCategory(category, null, null);
     }
 
     public Optional<Equipment> findById(String id) {

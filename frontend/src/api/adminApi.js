@@ -12,8 +12,11 @@ export function fetchAdminUsers() {
   return http('/api/admin/users')
 }
 
-export function fetchAdminEquipment() {
-  return http('/api/admin/equipment')
+export function fetchAdminEquipment(startDate, endDate) {
+  let q = ''
+  if (startDate) q += (q ? '&' : '?') + `startDate=${startDate}`
+  if (endDate) q += (q ? '&' : '?') + `endDate=${endDate}`
+  return http(`/api/admin/equipment${q}`)
 }
 
 export function createAdminEquipment(body) {

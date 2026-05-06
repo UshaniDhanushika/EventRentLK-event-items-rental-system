@@ -61,7 +61,7 @@ public class DataInitializer {
     }
 
     private static Equipment item(String name, String description, String category,
-                                  BigDecimal dailyRate, int qty, String imageUrl) {
+            BigDecimal dailyRate, int qty, String imageUrl) {
         Equipment e = new Equipment();
         e.setName(name);
         e.setDescription(description);

@@ -143,14 +143,14 @@ export default function UserApp() {
     setLoading(true)
     setError(null)
     try {
-      const data = await fetchEquipment(category || undefined)
+      const data = await fetchEquipment(category || undefined, startDate, endDate)
       setEquipment(data)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [category])
+  }, [category, startDate, endDate])
 
   useEffect(() => {
     load()
@@ -465,8 +465,22 @@ export default function UserApp() {
                           ${Number(item.dailyRate).toFixed(2)}
                           <small>/day</small>
                         </span>
-                        <span className="stock">
-                          {item.quantityAvailable} available
+                        <span className={`stock ${item.quantityAvailable === 0 ? 'out' : ''}`}>
+                          {item.quantityAvailable === 0 ? (
+                            <span>
+                              Sold out 
+                              {item.nextAvailableDate && (
+                                <span className="next-date"> (Back on {item.nextAvailableDate})</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span>
+                              {item.quantityAvailable} available
+                              {item.missingStockCount > 0 && item.nextAvailableDate && (
+                                <span className="next-date"> ({item.missingStockCount} more back on {item.nextAvailableDate})</span>
+                              )}
+                            </span>
+                          )}
                         </span>
                         <button
                           type="button"
@@ -498,38 +512,65 @@ export default function UserApp() {
             {cart.length > 0 && (
               <>
                 <ul className="cart-lines">
-                  {cart.map((c) => (
-                    <li key={c.equipmentId}>
-                      <div>
-                        <strong>{c.name}</strong>
-                        <span className="muted">
-                          {' '}
-                          ${Number(c.dailyRate).toFixed(2)}/day
-                        </span>
-                      </div>
-                      <div className="line-actions">
-                        <input
-                          type="number"
-                          min={1}
-                          max={c.quantityAvailable}
-                          value={c.quantity}
-                          onChange={(e) =>
-                            updateQty(
-                              c.equipmentId,
-                              parseInt(e.target.value, 10) || 1
-                            )
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="ghost small"
-                          onClick={() => removeLine(c.equipmentId)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                  {cart.map((c) => {
+                    // Find the "live" version of this item from our fetched equipment list
+                    const liveItem = equipment.find(eq => eq.id === c.equipmentId);
+                    const isOverbooked = liveItem && c.quantity > liveItem.quantityAvailable;
+
+                    return (
+                      <li key={c.equipmentId} className={isOverbooked ? 'overbooked-line' : ''}>
+                        <div>
+                          <strong>{c.name}</strong>
+                          <span className="muted">
+                            {' '}
+                            ${Number(c.dailyRate).toFixed(2)}/day
+                          </span>
+                          {liveItem && (
+                            <div className={`availability-tag ${liveItem.quantityAvailable === 0 ? 'out' : ''}`}>
+                              {liveItem.quantityAvailable === 0 ? (
+                                <span>
+                                  Sold out for these dates. 
+                                  {liveItem.nextAvailableDate && (
+                                    <> Back on <strong>{liveItem.nextAvailableDate}</strong>!</>
+                                  )}
+                                </span>
+                              ) : (
+                                <span>
+                                  Availability: <strong>{liveItem.quantityAvailable}</strong>
+                                  {liveItem.missingStockCount > 0 && liveItem.nextAvailableDate && (
+                                    <span className="next-date"> ({liveItem.missingStockCount} more back on {liveItem.nextAvailableDate})</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {isOverbooked && (
+                            <p className="error-text tiny">⚠️ Not enough stock for these dates!</p>
+                          )}
+                        </div>
+                        <div className="line-actions">
+                          <input
+                            type="number"
+                            min={1}
+                            value={c.quantity}
+                            onChange={(e) =>
+                              updateQty(
+                                c.equipmentId,
+                                parseInt(e.target.value, 10) || 1
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="ghost small"
+                            onClick={() => removeLine(c.equipmentId)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 <form className="checkout-form" onSubmit={submitOrder}>
@@ -541,7 +582,13 @@ export default function UserApp() {
                         type="date"
                         value={startDate}
                         min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        onChange={(e) => {
+                          const newStart = e.target.value;
+                          setStartDate(newStart);
+                          if (endDate && newStart > endDate) {
+                            setEndDate(newStart);
+                          }
+                        }}
                         required
                       />
                     </label>
