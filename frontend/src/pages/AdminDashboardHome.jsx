@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminEarningsChart from '../components/admin/AdminEarningsChart'
+import AdminCategoryChart from '../components/admin/AdminCategoryChart'
+import AdminTopItemsChart from '../components/admin/AdminTopItemsChart'
 import {
   confirmRental,
   completeRental,
@@ -434,6 +436,23 @@ export default function AdminDashboardHome() {
             </div>
           </div>
           <AdminEarningsChart data={chartSeries} />
+
+          <div className="admin-charts-grid">
+             <div className="owner-panel inner-panel">
+                <div className="owner-chart-head">
+                   <h3>Category Popularity</h3>
+                   <p>Revenue distribution by equipment type.</p>
+                </div>
+                <AdminCategoryChart data={dashboard.categoryStats} />
+             </div>
+             <div className="owner-panel inner-panel">
+                <div className="owner-chart-head">
+                   <h3>Top Performers</h3>
+                   <p>Most frequently rented items.</p>
+                </div>
+                <AdminTopItemsChart data={dashboard.mostRentedItems} />
+             </div>
+          </div>
         </div>
       )}
 
