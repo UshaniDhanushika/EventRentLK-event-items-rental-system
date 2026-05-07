@@ -14,6 +14,15 @@ public class AdminDashboardDto {
     private List<MonthlyEarningDto> monthlyEarnings = new ArrayList<>();
     private List<MonthlyEarningDto> dailyEarnings = new ArrayList<>();
     private List<MostRentedItemDto> mostRentedItems = new ArrayList<>();
+    private List<CategoryStatDto> categoryStats = new ArrayList<>();
+
+    public List<CategoryStatDto> getCategoryStats() {
+        return categoryStats;
+    }
+
+    public void setCategoryStats(List<CategoryStatDto> categoryStats) {
+        this.categoryStats = categoryStats;
+    }
 
     public List<MonthlyEarningDto> getDailyEarnings() {
         return dailyEarnings;
