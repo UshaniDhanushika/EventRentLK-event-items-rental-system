@@ -5,6 +5,7 @@ import com.eventrent.dto.MonthlyEarningDto;
 import com.eventrent.dto.MostRentedItemDto;
 import com.eventrent.model.RentalLine;
 import com.eventrent.model.RentalOrder;
+import com.eventrent.repository.EquipmentRepository;
 import com.eventrent.repository.RentalOrderRepository;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminDashboardService {
@@ -28,9 +30,11 @@ public class AdminDashboardService {
     private static final BigDecimal PLACEHOLDER_RATING = new BigDecimal("4.8");
 
     private final RentalOrderRepository rentalOrderRepository;
+    private final EquipmentRepository equipmentRepository;
 
-    public AdminDashboardService(RentalOrderRepository rentalOrderRepository) {
+    public AdminDashboardService(RentalOrderRepository rentalOrderRepository, EquipmentRepository equipmentRepository) {
         this.rentalOrderRepository = rentalOrderRepository;
+        this.equipmentRepository = equipmentRepository;
     }
 
     public AdminDashboardDto build() {
@@ -41,24 +45,35 @@ public class AdminDashboardService {
 
         BigDecimal earningsThisMonth = BigDecimal.ZERO;
         int activeRentalLines = 0;
+        int successfulOrders = 0;
         Map<String, Integer> rentedQtyByName = new HashMap<>();
 
         for (RentalOrder order : all) {
+            String status = order.getStatus() != null ? order.getStatus().toUpperCase() : "PENDING";
+            if ("CANCELLED".equals(status)) continue;
+            
+            successfulOrders++;
             BigDecimal total = order.getTotal() != null ? order.getTotal() : BigDecimal.ZERO;
             Instant created = order.getCreatedAt();
+            
+            // 1. Earnings (Only count non-cancelled)
             if (created != null && YearMonth.from(created.atZone(zone)).equals(currentMonth)) {
                 earningsThisMonth = earningsThisMonth.add(total);
             }
 
             List<RentalLine> lines = order.getLines() != null ? order.getLines() : List.of();
             for (RentalLine line : lines) {
-                LocalDate start = line.getStartDate();
-                LocalDate end = line.getEndDate();
-                if (start != null && end != null
-                        && !start.isAfter(today)
-                        && !end.isBefore(today)) {
-                    activeRentalLines++;
+                // 2. Active Rentals (In use TODAY, not returned, not cancelled)
+                if (!"RETURNED".equals(status)) {
+                    LocalDate start = line.getStartDate();
+                    LocalDate end = line.getEndDate();
+                    if (start != null && end != null
+                            && !start.isAfter(today)
+                            && !end.isBefore(today)) {
+                        activeRentalLines++;
+                    }
                 }
+                
                 String name = line.getEquipmentName() != null && !line.getEquipmentName().isBlank()
                         ? line.getEquipmentName()
                         : line.getEquipmentId();
@@ -103,15 +118,41 @@ public class AdminDashboardService {
             daily.add(new MonthlyEarningDto(day.format(dayKeyFmt), String.valueOf(d), daySum.setScale(2, RoundingMode.HALF_UP)));
         }
 
+        // Cache equipment categories for mapping
+        Map<String, String> idToCategory = equipmentRepository.findAll().stream()
+                .collect(Collectors.toMap(com.eventrent.model.Equipment::getId, 
+                         com.eventrent.model.Equipment::getCategory, (a, b) -> a));
+
+        Map<String, BigDecimal> revByCategory = new HashMap<>();
+        Map<String, Integer> qtyByCategory = new HashMap<>();
+
+        for (RentalOrder order : all) {
+            List<RentalLine> lines = order.getLines() != null ? order.getLines() : List.of();
+            for (RentalLine line : lines) {
+                String cat = idToCategory.getOrDefault(line.getEquipmentId(), "Other");
+                revByCategory.merge(cat, line.getLineTotal() != null ? line.getLineTotal() : BigDecimal.ZERO, BigDecimal::add);
+                qtyByCategory.merge(cat, line.getQuantity(), Integer::sum);
+            }
+        }
+
+        List<com.eventrent.dto.CategoryStatDto> categoryStats = revByCategory.entrySet().stream()
+                .map(entry -> new com.eventrent.dto.CategoryStatDto(
+                        entry.getKey(), 
+                        entry.getValue().setScale(2, RoundingMode.HALF_UP),
+                        qtyByCategory.getOrDefault(entry.getKey(), 0)))
+                .sorted(Comparator.comparing(com.eventrent.dto.CategoryStatDto::getRevenue).reversed())
+                .toList();
+
         AdminDashboardDto dto = new AdminDashboardDto();
         dto.setTotalEarningsThisMonth(earningsThisMonth.setScale(2, RoundingMode.HALF_UP));
         dto.setActiveRentals(activeRentalLines);
-        dto.setTotalRentals(all.size());
+        dto.setTotalRentals(successfulOrders);
         dto.setAverageRating(PLACEHOLDER_RATING);
         dto.setRatingPlaceholder(true);
         dto.setMonthlyEarnings(monthly);
         dto.setDailyEarnings(daily);
         dto.setMostRentedItems(mostRented);
+        dto.setCategoryStats(categoryStats);
         return dto;
     }
 }
