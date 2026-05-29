@@ -21,6 +21,8 @@ public class UserAccount {
     private String phoneNumber;
     private Role role;
     private Instant createdAt;
+    private String lastSpinDate;
+    private Integer lastSpinDiscount;
 
     public String getId() {
         return id;
@@ -84,5 +86,21 @@ public class UserAccount {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getLastSpinDate() {
+        return lastSpinDate;
+    }
+
+    public void setLastSpinDate(String lastSpinDate) {
+        this.lastSpinDate = lastSpinDate;
+    }
+
+    public Integer getLastSpinDiscount() {
+        return lastSpinDiscount;
+    }
+
+    public void setLastSpinDiscount(Integer lastSpinDiscount) {
+        this.lastSpinDiscount = lastSpinDiscount;
     }
 }

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createRental, fetchMyRentals } from '../api/rentalsApi'
 import { fetchEquipment } from '../api/equipmentApi'
 import { fetchMe, changePasswordRequest, updateProfileRequest } from '../api/authApi'
+import { spinWheelRequest } from '../api/spinApi'
 import { useAuth } from '../auth/AuthContext'
 import { useCart } from '../auth/CartContext'
 import ThemeToggle from '../components/ThemeToggle'
@@ -116,6 +117,88 @@ export default function UserApp() {
   // Custom Modal State
   const [confirmModal, setConfirmModal] = useState({ visible: false, item: null })
 
+  // Spin the Wheel State
+  const [showWheel, setShowWheel] = useState(false)
+  const [spinning, setSpinning] = useState(false)
+  const [hasSpun, setHasSpun] = useState(false)
+  const [discountPercent, setDiscountPercent] = useState(0)
+  const [spinResult, setSpinResult] = useState(null)
+  const [wheelRotation, setWheelRotation] = useState(0)
+
+  // Initialize daily spin check based on authenticated user
+  useEffect(() => {
+    if (user) {
+      const today = new Date().toISOString().split('T')[0]
+      if (user.lastSpinDate === today) {
+        setHasSpun(true)
+        if (user.lastSpinDiscount !== undefined) {
+          setDiscountPercent(user.lastSpinDiscount)
+          setSpinResult(user.lastSpinDiscount)
+        }
+      } else {
+        setHasSpun(false)
+        setDiscountPercent(0)
+        setSpinResult(null)
+      }
+    } else {
+      setHasSpun(false)
+      setDiscountPercent(0)
+      setSpinResult(null)
+    }
+  }, [user])
+
+  const handleSpin = async () => {
+    if (hasSpun || spinning) return
+    
+    if (!user) {
+      alert("Please log in or register to try your luck on the Spin Wheel!")
+      navigate('/login')
+      return
+    }
+
+    setSpinning(true)
+    
+    try {
+      const response = await spinWheelRequest()
+      const { segmentIndex, discountPercent: wonDiscount } = response
+      
+      const segments = [
+        { pct: 20 }, // 0-45
+        { pct: 0 },  // 45-90 (NO LUCK)
+        { pct: 10 }, // 90-135
+        { pct: 5 },  // 135-180
+        { pct: 15 }, // 180-225
+        { pct: 0 },  // 225-270 (TRY AGAIN)
+        { pct: 10 }, // 270-315
+        { pct: 5 }   // 315-360
+      ]
+
+      const win = segments[segmentIndex] || { pct: 0 }
+      
+      // Calculate rotation to land on center of segment
+      const segmentCenter = (segmentIndex * 45) + 22.5
+      const extraSpins = 5 * 360 
+      const finalRotation = extraSpins + (360 - segmentCenter)
+      
+      setWheelRotation(finalRotation)
+      
+      setTimeout(() => {
+        setSpinResult(wonDiscount)
+        setDiscountPercent(wonDiscount)
+        setSpinning(false)
+        setHasSpun(true)
+        
+        // Update user state context
+        if (login && user) {
+          login({ ...user, lastSpinDate: new Date().toISOString().split('T')[0], lastSpinDiscount: wonDiscount })
+        }
+      }, 4000) // Match the 4s CSS animation
+    } catch (err) {
+      alert("Error spinning the wheel: " + err.message)
+      setSpinning(false)
+    }
+  }
+
   useEffect(() => {
     if (location.pathname === '/checkout') {
       setView('checkout')
@@ -157,7 +240,7 @@ export default function UserApp() {
   }, [load])
 
   useEffect(() => {
-    if (view === 'profile' && user) {
+    if ((view === 'profile' || view === 'my-rentals') && user) {
       setLoadingRentals(true)
       fetchMyRentals()
         .then(setMyRentals)
@@ -219,17 +302,19 @@ export default function UserApp() {
     return cats.sort();
   }, [equipment, eventPath]);
 
-  const estimatedTotal = useMemo(() => {
-    if (!startDate || !endDate || cart.length === 0) return null
+  const totals = useMemo(() => {
+    if (!startDate || !endDate || cart.length === 0) return { base: 0, final: 0, discount: 0 }
     const s = new Date(startDate)
     const e = new Date(endDate)
-    if (e < s) return null
+    if (e < s) return { base: 0, final: 0, discount: 0 }
     const days = Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1
-    return cart.reduce((sum, c) => {
+    const base = cart.reduce((sum, c) => {
       const rate = Number(c.dailyRate)
       return sum + rate * days * c.quantity
     }, 0)
-  }, [cart, startDate, endDate])
+    const discount = base * (discountPercent / 100)
+    return { base, final: base - discount, discount }
+  }, [cart, startDate, endDate, discountPercent])
 
   const submitOrder = async (e) => {
     e.preventDefault()
@@ -248,11 +333,14 @@ export default function UserApp() {
         customerPhone: customerPhone || undefined,
         notes: notes || undefined,
         lines,
+        discountAmount: totals.discount,
+        discountPercent: discountPercent
       })
       setOrderResult(order)
       clearCart()
-    } catch (err) {
-      setOrderResult({ error: err.message })
+      navigate('/')
+    } catch (e) {
+      setOrderResult({ error: e.message })
     } finally {
       setSubmitting(false)
     }
@@ -275,17 +363,15 @@ export default function UserApp() {
     }
   }
 
+  const [cartToast, setCartToast] = useState({ visible: false, name: '' })
+
   const handleAddToCartConfirm = (item) => {
-    setConfirmModal({ visible: true, item })
+    addToCart(item)
+    setCartToast({ visible: true, name: item.name })
+    setTimeout(() => setCartToast({ visible: false, name: '' }), 3000)
   }
 
-  const confirmAddToCart = () => {
-    if (confirmModal.item) {
-      addToCart(confirmModal.item)
-      setConfirmModal({ visible: false, item: null })
-      navigate('/checkout')
-    }
-  }
+  // Remove confirmAddToCart since we'll use handleAddToCartConfirm directly or simplified
 
   return (
     <div className="app">
@@ -333,11 +419,18 @@ export default function UserApp() {
               <>
                 <button
                   type="button"
-                  className="nav-user-btn"
+                  className={view === 'profile' ? 'nav-user-btn active' : 'nav-user-btn'}
                   onClick={() => setView('profile')}
                   title="View Profile"
                 >
                   <span className="small">{user.fullName}</span>
+                </button>
+                <button
+                  type="button"
+                  className={view === 'my-rentals' ? 'active' : ''}
+                  onClick={() => setView('my-rentals')}
+                >
+                  My Rentals
                 </button>
                 <button type="button" className="ghost small" onClick={logout}>
                   Sign out
@@ -348,6 +441,16 @@ export default function UserApp() {
           </nav>
         </div>
       </header>
+
+      {cartToast.visible && (
+        <div className="cart-toast">
+          <div className="cart-toast-inner">
+             <span className="check">✓</span>
+             <p><strong>{cartToast.name}</strong> added to your celebration!</p>
+             <button className="toast-checkout-btn" onClick={goCheckout}>Checkout Now</button>
+          </div>
+        </div>
+      )}
 
       {view === 'path-selection' && (
         <div className="path-selection-overlay">
@@ -439,13 +542,13 @@ export default function UserApp() {
                   <p className="muted no-results">No items found specifically for {eventPath}. Try another category or check the full catalog.</p>
                 )}
                 {filteredEquipment.map((item) => (
-                  <li key={item.id} className="card">
+                  <li key={item.id} className={`card ${item.category === 'Mystery' ? 'mystery-card' : ''}`}>
                     <div
                       className="card-image"
                       style={{ backgroundImage: `url(${item.imageUrl || ''})` }}
                     >
                       <div className="card-path-badge">
-                        {(() => {
+                        {item.category === 'Mystery' ? '🔥 LIMITED TIME' : (() => {
                           const match = (item.description || '').match(/::path:(\w+)::/)
                           const path = match ? match[1] : (item.applicablePath || 'both')
                           if (path === 'wedding') return 'Wedding Only'
@@ -453,6 +556,7 @@ export default function UserApp() {
                           return 'Essential (Both)'
                         })()}
                       </div>
+                      {item.category === 'Mystery' && <div className="mystery-glow-badge">✨ MYSTERY</div>}
                     </div>
                     <div className="card-body">
                       <p className="card-cat">{item.category}</p>
@@ -467,28 +571,18 @@ export default function UserApp() {
                         </span>
                         <span className={`stock ${item.quantityAvailable === 0 ? 'out' : ''}`}>
                           {item.quantityAvailable === 0 ? (
-                            <span>
-                              Sold out 
-                              {item.nextAvailableDate && (
-                                <span className="next-date"> (Back on {item.nextAvailableDate})</span>
-                              )}
-                            </span>
+                            <span>Sold out</span>
                           ) : (
-                            <span>
-                              {item.quantityAvailable} available
-                              {item.missingStockCount > 0 && item.nextAvailableDate && (
-                                <span className="next-date"> ({item.missingStockCount} more back on {item.nextAvailableDate})</span>
-                              )}
-                            </span>
+                            <span>{item.quantityAvailable} available</span>
                           )}
                         </span>
                         <button
                           type="button"
-                          className="primary"
+                          className={item.category === 'Mystery' ? 'mystery-btn' : 'primary'}
                           onClick={() => handleAddToCartConfirm(item)}
                           disabled={item.quantityAvailable < 1}
                         >
-                          Add to cart
+                          {item.category === 'Mystery' ? '🔓 Open Mystery Box' : 'Add to cart'}
                         </button>
                       </div>
                     </div>
@@ -603,19 +697,30 @@ export default function UserApp() {
                       />
                     </label>
                   </div>
-                  {estimatedTotal != null && (
+                  {totals.base > 0 && (
                     <div className="cart-financials">
                       <p className="estimate">
-                        Estimated total:{' '}
-                        <strong>${estimatedTotal.toFixed(2)}</strong>
-                        <span className="muted"> (before taxes & fees)</span>
+                        Base Total: <strong>${totals.base.toFixed(2)}</strong>
+                      </p>
+                      {discountPercent > 0 && (
+                        <p className="text-ok">
+                          Wheel Discount ({discountPercent}%): <strong>-${totals.discount.toFixed(2)}</strong>
+                        </p>
+                      )}
+                      {!hasSpun && (
+                        <button type="button" className="spin-trigger-btn" onClick={() => setShowWheel(true)}>
+                          🎡 Try your luck for a discount!
+                        </button>
+                      )}
+                      <p className="final-total">
+                        Final Total: <strong className="primary-text">${totals.final.toFixed(2)}</strong>
                       </p>
                       <p className="advance-notice">
                         Advance Payment (60%):{' '}
-                        <strong className="text-ok">${(estimatedTotal * 0.6).toFixed(2)}</strong>
+                        <strong className="text-ok">${(totals.final * 0.6).toFixed(2)}</strong>
                       </p>
                       <p className="remainder-notice small muted">
-                        Remaining Balance: ${(estimatedTotal * 0.4).toFixed(2)}
+                        Remaining Balance: ${(totals.final * 0.4).toFixed(2)}
                       </p>
                     </div>
                   )}
@@ -681,6 +786,79 @@ export default function UserApp() {
                 </p>
               </div>
             )}
+          </section>
+        )}
+        {view === 'my-rentals' && (
+          <section className="profile-section">
+            <div className="profile-card wider">
+              <header className="profile-header">
+                <button type="button" className="ghost small" onClick={() => setView('catalog')}>
+                  ← Back to Catalog
+                </button>
+                <h1>My Rental History</h1>
+                <p className="muted">Track your current and past bookings here.</p>
+              </header>
+
+              <div className="profile-history">
+                {loadingRentals && <p className="muted">Loading rentals...</p>}
+                {!loadingRentals && myRentals.length === 0 && (
+                  <div className="empty-state">
+                    <p className="muted">No rental records found.</p>
+                    <button className="primary-outline small" onClick={() => setView('catalog')}>Start Renting Now</button>
+                  </div>
+                )}
+                {!loadingRentals && myRentals.length > 0 && (
+                  <div className="admin-table-scroll">
+                    <table className="admin-data-table profile-rentals-table">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Dates</th>
+                          <th>Items</th>
+                          <th>Total Cost</th>
+                          <th>Advance (60%)</th>
+                          <th>Remainder</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myRentals.map(rental => (
+                          <tr key={rental.id}>
+                            <td className="tiny font-mono">#{rental.id.slice(-6)}</td>
+                            <td className="small">
+                              <div className="date-range">
+                                <span>{rental.startDate}</span>
+                                <span className="muted">to</span>
+                                <span>{rental.endDate}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="rental-items-summ">
+                                {rental.lines.map(l => (
+                                  <div key={l.equipmentId} className="tiny">
+                                    {l.quantity}x {l.equipmentName}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="font-bold">${Number(rental.total).toFixed(2)}</td>
+                            <td className="text-ok">${Number(rental.advancePayment || 0).toFixed(2)}</td>
+                            <td className="text-warn">
+                              ${(Number(rental.total) - Number(rental.advancePayment || 0)).toFixed(2)}
+                            </td>
+                            <td>
+                              <span className={`status-badge ${(rental.status || '').toLowerCase().trim().replace('_', '-')}`}>
+                                {rental.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
         )}
         {view === 'profile' && (
@@ -761,64 +939,6 @@ export default function UserApp() {
                   <PasswordChangeForm />
                 </div>
               </div>
-
-              <hr className="profile-hr" />
-
-              <div className="profile-history">
-                <h3>Rental History</h3>
-                {loadingRentals && <p className="muted">Loading rentals...</p>}
-                {!loadingRentals && myRentals.length === 0 && (
-                  <p className="muted">No rental records found.</p>
-                )}
-                {!loadingRentals && myRentals.length > 0 && (
-                  <div className="admin-table-scroll">
-                    <table className="admin-data-table profile-rentals-table">
-                      <thead>
-                        <tr>
-                          <th>Dates</th>
-                          <th>Items</th>
-                          <th>Total</th>
-                          <th>Advance</th>
-                          <th>Remainder</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {myRentals.map(rental => (
-                          <tr key={rental.id}>
-                            <td className="small">
-                              <div className="date-range">
-                                <span>{rental.startDate}</span>
-                                <span className="muted">to</span>
-                                <span>{rental.endDate}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="rental-items-summ">
-                                {rental.lines.map(l => (
-                                  <div key={l.equipmentId} className="tiny">
-                                    {l.quantity}x {l.equipmentName}
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="font-bold">${Number(rental.total).toFixed(2)}</td>
-                            <td className="text-ok">${Number(rental.advancePayment || 0).toFixed(2)}</td>
-                            <td className="text-warn">
-                              ${(Number(rental.total) - Number(rental.advancePayment || 0)).toFixed(2)}
-                            </td>
-                            <td>
-                              <span className={`status-badge ${rental.status?.toLowerCase().replace('_', '-')}`}>
-                                {rental.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
             </div>
           </section>
         )}
@@ -846,6 +966,62 @@ export default function UserApp() {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SPIN THE WHEEL MODAL */}
+      {showWheel && (
+        <div className="custom-modal-overlay">
+          <div className="custom-modal wheel-modal">
+            <button className="modal-close" onClick={() => setShowWheel(false)}>×</button>
+            <h2>🎡 Luck of the Spin!</h2>
+            <p>Win a discount of up to 20% on your entire rental!</p>
+            
+            <div className={`wheel-container ${spinning ? 'is-spinning' : ''}`}>
+               <div className="wheel-pointer">▼</div>
+               <div className="wheel-outer" style={{ transform: `rotate(${wheelRotation}deg)` }}></div>
+               <div className="wheel-labels" style={{ transform: `rotate(${wheelRotation}deg)` }}>
+                  <div className="w-label" style={{transform: 'rotate(22.5deg)'}}><span>20% OFF</span></div>
+                  <div className="w-label" style={{transform: 'rotate(67.5deg)'}}><span>NO LUCK</span></div>
+                  <div className="w-label" style={{transform: 'rotate(112.5deg)'}}><span>10% OFF</span></div>
+                  <div className="w-label" style={{transform: 'rotate(157.5deg)'}}><span>5% OFF</span></div>
+                  <div className="w-label" style={{transform: 'rotate(202.5deg)'}}><span>15% OFF</span></div>
+                  <div className="w-label" style={{transform: 'rotate(247.5deg)'}}><span>TRY AGAIN</span></div>
+                  <div className="w-label" style={{transform: 'rotate(292.5deg)'}}><span>10% OFF</span></div>
+                  <div className="w-label" style={{transform: 'rotate(337.5deg)'}}><span>5% OFF</span></div>
+               </div>
+               <div className="wheel-center"></div>
+            </div>
+
+            <div className="wheel-actions">
+              {!hasSpun ? (
+                <button 
+                  type="button" 
+                  className="primary wide spin-btn" 
+                  disabled={spinning}
+                  onClick={handleSpin}
+                >
+                  {spinning ? 'Spinning...' : 'SPIN THE WHEEL!'}
+                </button>
+              ) : (
+                <div className="spin-result-msg">
+                   {spinResult > 0 ? (
+                     <div className="win-msg">
+                        <h3>CONGRATULATIONS! 🎉</h3>
+                        <p>You won a <strong>{spinResult}% Discount!</strong></p>
+                        <p className="tiny muted">Applied to your total automatically.</p>
+                     </div>
+                   ) : (
+                     <div className="lose-msg">
+                        <h3>Better luck next time!</h3>
+                        <p>No discount this time, but your event will still be amazing!</p>
+                     </div>
+                   )}
+                   <button type="button" className="primary-outline small" onClick={() => setShowWheel(false)}>Continue to Checkout</button>
+                </div>
+              )}
             </div>
           </div>
         </div>

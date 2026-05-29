@@ -65,7 +65,7 @@ public class AuthService {
     public UserProfileResponse profileForEmail(String email) {
         UserAccount u = users.findByEmailIgnoreCase(email.trim().toLowerCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserProfileResponse(u.getEmail(), u.getFullName(), u.getAddress(), u.getPhoneNumber(), u.getRole());
+        return new UserProfileResponse(u.getEmail(), u.getFullName(), u.getAddress(), u.getPhoneNumber(), u.getRole(), u.getLastSpinDate(), u.getLastSpinDiscount());
     }
 
     public void changePassword(String email, ChangePasswordRequest req) {

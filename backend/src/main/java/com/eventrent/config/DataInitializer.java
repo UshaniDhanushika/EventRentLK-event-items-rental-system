@@ -36,9 +36,19 @@ public class DataInitializer {
     @Bean
     CommandLineRunner seedEquipment(EquipmentRepository repo) {
         return args -> {
-            if (repo.count() > 0) {
+            if (repo.count() > 0 && repo.findAll().stream().anyMatch(e -> e.getName().contains("Mystery Box"))) {
                 return;
             }
+            
+            // Re-adding the standard items if they are missing is complex, 
+            // so I'll just check for the Mystery Box specifically here.
+                repo.save(item("Premium Celebration Mystery Box", "::path:both:: A surprise curated set of high-end event decor and accessories! Worth over $250 if rented individually.",
+                    "Mystery", new BigDecimal("49.00"), 12,
+                    "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800"));
+
+            // Only run the rest if repo was empty
+            if (repo.count() > 1) return;
+
             repo.save(item("PA System (small)", "Speakers, mixer, 2 wireless mics — up to 80 guests.",
                     "Audio", new BigDecimal("125.00"), 4,
                     "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800"));
@@ -57,6 +67,9 @@ public class DataInitializer {
             repo.save(item("Projector + 120\" Screen", "HDMI, includes extension cords.",
                     "AV", new BigDecimal("85.00"), 5,
                     "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800"));
+            repo.save(item("Premium Celebration Mystery Box", "A surprise curated set of high-end event decor and accessories! Worth over $250 if rented individually.",
+                    "Mystery", new BigDecimal("49.00"), 12,
+                    "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800"));
         };
     }
 
